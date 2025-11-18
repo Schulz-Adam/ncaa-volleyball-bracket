@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(uuid())
+  email       String       @unique
+  displayName String?
+  createdAt   DateTime     @default(now())
+
+  predictions Prediction[]
+
+  @@map("users")
+}
+
+model Match {
+  id          String    @id @default(uuid())
+  round       Int       // 1-6 (Round of 64, 32, 16, 8, 4, Championship)
+  matchNumber Int
+  team1       String
+  team2       String
+  winner      String?   // "team1" or "team2" when completed
+  completed   Boolean   @default(false)
+  matchDate   DateTime
+  scrapedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sets        Set[]
+  predictions Prediction[]
+
+  @@map("matches")
+}
+
+model Set {
+  id          String   @id @default(uuid())
+  matchId     String
+  setNumber   Int      // 1-5
+  team1Score  Int
+  team2Score  Int
+  createdAt   DateTime @default(now())
+
+  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@map("sets")
+}
+
+model Prediction {
+  id                 String   @id @default(uuid())
+  userId             String
+  matchId            String
+  predictedWinner    String   // "team1" or "team2"
+  predictedTotalSets Int      // 3, 4, or 5
+  pointsEarned       Int?     // null until match completes
+  createdAt          DateTime @default(now())
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match              Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchId]) // Each user can only predict each match once
+  @@index([userId])
+  @@index([matchId])
+  @@map("predictions")
+}
