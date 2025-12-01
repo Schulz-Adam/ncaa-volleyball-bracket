@@ -14,7 +14,13 @@ function App() {
   }, [initAuth]);
 
   // Check if maintenance mode is enabled
-  const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
+  const maintenanceValue = import.meta.env.VITE_MAINTENANCE_MODE;
+  const isMaintenanceMode = maintenanceValue === 'true';
+
+  // Temporary debugging
+  console.log('VITE_MAINTENANCE_MODE:', maintenanceValue);
+  console.log('isMaintenanceMode:', isMaintenanceMode);
+  console.log('All env vars:', import.meta.env);
 
   if (isMaintenanceMode) {
     return <MaintenanceMode />;
