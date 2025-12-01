@@ -4,6 +4,7 @@ import { useAuthStore } from './stores/authStore';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Home from './pages/Home';
+import MaintenanceMode from './components/MaintenanceMode';
 
 function App() {
   const { initAuth } = useAuthStore();
@@ -11,6 +12,13 @@ function App() {
   useEffect(() => {
     initAuth();
   }, [initAuth]);
+
+  // Check if maintenance mode is enabled
+  const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
+
+  if (isMaintenanceMode) {
+    return <MaintenanceMode />;
+  }
 
   return (
     <BrowserRouter>
