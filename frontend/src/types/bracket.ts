@@ -13,6 +13,10 @@ export interface Match {
   matchNumber: number;
   team1: string;
   team2: string;
+  team1Logo: string | null;
+  team2Logo: string | null;
+  team1Seed: number | null;
+  team2Seed: number | null;
   winner: string | null; // "team1" or "team2" when completed
   completed: boolean;
   matchDate: string;

@@ -11,8 +11,8 @@ interface BracketProps {
 
 export default function Bracket({ matches, predictions, onSubmitPrediction }: BracketProps) {
 
-  // Organize matches by round and split into left/right brackets
-  const { leftBracket, rightBracket, finalFour, championship } = useMemo(() => {
+  // Organize matches by round and split into 4 quadrants
+  const { topLeftBracket, topRightBracket, bottomLeftBracket, bottomRightBracket, finalFour, championship } = useMemo(() => {
     const grouped: Record<number, MatchWithPrediction[]> = {
       1: [],
       2: [],
@@ -35,20 +35,38 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
       grouped[Number(round)].sort((a, b) => a.matchNumber - b.matchNumber);
     });
 
-    // Split rounds 1-4 into left and right brackets
-    const leftBracket: Record<number, MatchWithPrediction[]> = {};
-    const rightBracket: Record<number, MatchWithPrediction[]> = {};
+    // Split round 1 into 4 quadrants (8 matches each)
+    // Top left: matches 1-8
+    // Top right: matches 9-16
+    // Bottom left: matches 17-24
+    // Bottom right: matches 25-32
+    const round1Matches = grouped[1];
+    const topLeftR1 = round1Matches.slice(0, 8);    // Matches 1-8
+    const topRightR1 = round1Matches.slice(8, 16);  // Matches 9-16
+    const bottomLeftR1 = round1Matches.slice(16, 24); // Matches 17-24
+    const bottomRightR1 = round1Matches.slice(24, 32); // Matches 25-32
 
-    [1, 2, 3, 4].forEach(round => {
+    // For subsequent rounds, distribute proportionally
+    const topLeftBracket: Record<number, MatchWithPrediction[]> = { 1: topLeftR1 };
+    const topRightBracket: Record<number, MatchWithPrediction[]> = { 1: topRightR1 };
+    const bottomLeftBracket: Record<number, MatchWithPrediction[]> = { 1: bottomLeftR1 };
+    const bottomRightBracket: Record<number, MatchWithPrediction[]> = { 1: bottomRightR1 };
+
+    // Distribute rounds 2-4 proportionally
+    [2, 3, 4].forEach(round => {
       const roundMatches = grouped[round];
-      const midpoint = Math.ceil(roundMatches.length / 2);
-      leftBracket[round] = roundMatches.slice(0, midpoint);
-      rightBracket[round] = roundMatches.slice(midpoint);
+      const quarterSize = Math.ceil(roundMatches.length / 4);
+      topLeftBracket[round] = roundMatches.slice(0, quarterSize);
+      topRightBracket[round] = roundMatches.slice(quarterSize, quarterSize * 2);
+      bottomLeftBracket[round] = roundMatches.slice(quarterSize * 2, quarterSize * 3);
+      bottomRightBracket[round] = roundMatches.slice(quarterSize * 3);
     });
 
     return {
-      leftBracket,
-      rightBracket,
+      topLeftBracket,
+      topRightBracket,
+      bottomLeftBracket,
+      bottomRightBracket,
       finalFour: grouped[5], // Semifinals
       championship: grouped[6], // Championship
     };
@@ -58,53 +76,113 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
     await onSubmitPrediction(matchId, winner, totalSets);
   };
 
+  // Calculate expected matches for each round based on standard bracket progression
+  const getExpectedMatchCount = (round: number, quadrantSize: number) => {
+    // Round 1: quadrantSize matches (8 for each quadrant)
+    // Round 2: quadrantSize / 2 matches (4 for each quadrant)
+    // Round 3: quadrantSize / 4 matches (2 for each quadrant)
+    // Round 4: quadrantSize / 8 matches (1 for each quadrant)
+    return Math.ceil(quadrantSize / Math.pow(2, round - 1));
+  };
+
+  const renderQuadrant = (bracket: Record<number, MatchWithPrediction[]>, label: string, isRightSide: boolean = false) => {
+    const rounds = isRightSide ? [4, 3, 2, 1] : [1, 2, 3, 4];
+    const quadrantSize = 8; // Each quadrant has 8 teams
+    const matchHeight = 120; // Approximate height of a match card including gap
+
+    return (
+      <div className="flex gap-8">
+        {rounds.map((round) => {
+          const matches = bracket[round] || [];
+          const expectedCount = getExpectedMatchCount(round, quadrantSize);
+
+          // Create array with actual matches + empty placeholders
+          const displayMatches: (MatchWithPrediction | null)[] = [
+            ...matches,
+            ...Array(Math.max(0, expectedCount - matches.length)).fill(null)
+          ];
+
+          // Calculate vertical spacing for proper alignment
+          // Each subsequent round should be centered between pairs of previous round matches
+          const spacingMultiplier = Math.pow(2, round - 1);
+          const baseMargin = (matchHeight * (spacingMultiplier - 1)) / 2;
+
+          return (
+            <div key={`${label}-${round}`} className="flex flex-col relative">
+              <div className="sticky top-0 bg-white z-10 pb-4 mb-4 border-b-2 border-blue-200">
+                <h3 className="text-lg font-bold text-gray-900">
+                  {ROUND_NAMES[round]}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {matches.length}/{expectedCount} matches
+                </p>
+              </div>
+              <div className="flex flex-col">
+                {displayMatches.map((match, idx) => {
+                  // Calculate margin for proper alignment
+                  // First match needs offset to center between previous round matches
+                  // Subsequent matches need gap to align with their feeding matches
+                  const marginTop = idx === 0 ? baseMargin : matchHeight * spacingMultiplier;
+
+                  return (
+                  <div
+                    key={match?.id || `empty-${label}-${round}-${idx}`}
+                    className="relative"
+                    style={{
+                      marginTop: `${marginTop}px`,
+                    }}
+                  >
+                    <MatchCard
+                      match={match || undefined}
+                      onPredict={handlePredict}
+                      isEmpty={!match}
+                    />
+
+                    {/* Connecting line to next round */}
+                    {round < 4 && (
+                      <div
+                        className={`absolute top-1/2 ${isRightSide ? '-left-8' : '-right-8'} w-8 h-px bg-blue-400`}
+                        style={{ zIndex: 1 }}
+                      />
+                    )}
+
+                    {/* Vertical connecting line between pairs */}
+                    {idx % 2 === 0 && idx < displayMatches.length - 1 && (
+                      <div
+                        className={`absolute ${isRightSide ? '-left-8' : '-right-8'} w-px bg-blue-400`}
+                        style={{
+                          top: '50%',
+                          height: `${matchHeight * spacingMultiplier}px`,
+                          zIndex: 1,
+                        }}
+                      />
+                    )}
+                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="bracket-container overflow-x-auto pb-8">
-        <div className="inline-flex gap-8 min-w-min px-4">
-          {/* LEFT BRACKET - Rounds 1-4 */}
+        <div className="flex flex-col gap-12 px-4">
+          {/* TOP ROW - Top Left and Top Right Quadrants */}
           <div className="flex gap-8">
-            {[1, 2, 3, 4].map(round => (
-              <div key={`left-${round}`} className="flex flex-col">
-                <div className="sticky top-0 bg-white z-10 pb-4 mb-4 border-b-2 border-blue-200">
-                  <h3 className="text-lg font-bold text-gray-900">
-                    {ROUND_NAMES[round]}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {leftBracket[round]?.length || 0} matches
-                  </p>
-                </div>
-                <div className="flex flex-col gap-4">
-                  {(leftBracket[round] || []).map((match, idx) => (
-                    <div
-                      key={match.id}
-                      className="relative"
-                      style={{
-                        marginTop: round > 1 ? `${Math.pow(2, round - 1) * 20 - 20}px` : 0,
-                      }}
-                    >
-                      <MatchCard match={match} onPredict={handlePredict} />
+            <div className="border-2 border-gray-300 rounded-lg p-4 bg-blue-50">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Top Left Region (1-8)</h2>
+              {renderQuadrant(topLeftBracket, 'top-left', false)}
+            </div>
 
-                      {/* Connecting line to next round */}
-                      {round < 4 && (
-                        <div className="absolute top-1/2 -right-8 w-8 h-px bg-blue-300" />
-                      )}
-
-                      {/* Vertical connecting line */}
-                      {idx % 2 === 0 && idx < (leftBracket[round]?.length || 0) - 1 && (
-                        <div
-                          className="absolute -right-8 w-px bg-blue-300"
-                          style={{
-                            top: '50%',
-                            height: `calc(100% + ${Math.pow(2, round - 1) * 20 + 80}px)`,
-                          }}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div className="border-2 border-gray-300 rounded-lg p-4 bg-green-50">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Top Right Region (9-16)</h2>
+              {renderQuadrant(topRightBracket, 'top-right', true)}
+            </div>
           </div>
 
           {/* CENTER - Final Four & Championship */}
@@ -117,22 +195,8 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
                 </h3>
               </div>
               <div className="flex flex-col gap-8">
-                {finalFour.map((match, idx) => (
-                  <div key={match.id} className="relative">
-                    <MatchCard match={match} onPredict={handlePredict} />
-                    {/* Connecting lines to championship */}
-                    {idx === 0 && (
-                      <>
-                        <div className="absolute top-1/2 left-1/2 transform translate-x-0 w-16 h-px bg-yellow-400" />
-                        <div className="absolute top-1/2 left-1/2 transform translate-x-16 w-px bg-yellow-400" style={{ height: '50%' }} />
-                      </>
-                    )}
-                    {idx === 1 && (
-                      <>
-                        <div className="absolute bottom-1/2 left-1/2 transform translate-x-16 w-px bg-yellow-400" style={{ height: '50%' }} />
-                      </>
-                    )}
-                  </div>
+                {finalFour.map((match) => (
+                  <MatchCard key={match.id} match={match} onPredict={handlePredict} />
                 ))}
               </div>
             </div>
@@ -150,49 +214,17 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
             </div>
           </div>
 
-          {/* RIGHT BRACKET - Rounds 4-1 (mirrored) */}
+          {/* BOTTOM ROW - Bottom Left and Bottom Right Quadrants */}
           <div className="flex gap-8">
-            {[4, 3, 2, 1].map(round => (
-              <div key={`right-${round}`} className="flex flex-col">
-                <div className="sticky top-0 bg-white z-10 pb-4 mb-4 border-b-2 border-blue-200">
-                  <h3 className="text-lg font-bold text-gray-900">
-                    {ROUND_NAMES[round]}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {rightBracket[round]?.length || 0} matches
-                  </p>
-                </div>
-                <div className="flex flex-col gap-4">
-                  {(rightBracket[round] || []).map((match, idx) => (
-                    <div
-                      key={match.id}
-                      className="relative"
-                      style={{
-                        marginTop: round > 1 ? `${Math.pow(2, round - 1) * 20 - 20}px` : 0,
-                      }}
-                    >
-                      {/* Connecting line from previous round */}
-                      {round < 4 && (
-                        <div className="absolute top-1/2 -left-8 w-8 h-px bg-blue-300" />
-                      )}
+            <div className="border-2 border-gray-300 rounded-lg p-4 bg-yellow-50">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Lower Left Region (17-24)</h2>
+              {renderQuadrant(bottomLeftBracket, 'bottom-left', false)}
+            </div>
 
-                      {/* Vertical connecting line */}
-                      {idx % 2 === 0 && idx < (rightBracket[round]?.length || 0) - 1 && (
-                        <div
-                          className="absolute -left-8 w-px bg-blue-300"
-                          style={{
-                            top: '50%',
-                            height: `calc(100% + ${Math.pow(2, round - 1) * 20 + 80}px)`,
-                          }}
-                        />
-                      )}
-
-                      <MatchCard match={match} onPredict={handlePredict} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div className="border-2 border-gray-300 rounded-lg p-4 bg-purple-50">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Lower Right Region (25-32)</h2>
+              {renderQuadrant(bottomRightBracket, 'bottom-right', true)}
+            </div>
           </div>
         </div>
       </div>

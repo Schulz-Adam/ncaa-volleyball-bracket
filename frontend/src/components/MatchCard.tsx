@@ -2,12 +2,33 @@ import { useState } from 'react';
 import type { MatchWithPrediction } from '../types/bracket';
 
 interface MatchCardProps {
-  match: MatchWithPrediction;
+  match?: MatchWithPrediction;
   onPredict: (matchId: string, winner: string, totalSets: number) => void;
+  isEmpty?: boolean;
 }
 
-export default function MatchCard({ match, onPredict }: MatchCardProps) {
+export default function MatchCard({ match, onPredict, isEmpty = false }: MatchCardProps) {
   const [selectedWinner, setSelectedWinner] = useState<'team1' | 'team2' | null>(null);
+
+  // If empty match placeholder
+  if (isEmpty || !match) {
+    return (
+      <div className="bg-gray-100 border-2 border-gray-300 border-dashed rounded-lg shadow-sm min-w-[200px]">
+        <div className="bg-gray-200 px-3 py-1 border-b border-gray-300">
+          <span className="text-xs font-medium text-gray-500">TBD</span>
+        </div>
+        <div className="divide-y divide-gray-300">
+          <div className="px-3 py-2 text-sm text-gray-400">
+            <span>Winner TBD</span>
+          </div>
+          <div className="px-3 py-2 text-sm text-gray-400">
+            <span>Winner TBD</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isPredicted = !!match.userPrediction;
   const isCompleted = match.completed;
 
@@ -102,10 +123,27 @@ export default function MatchCard({ match, onPredict }: MatchCardProps) {
           className={getTeamClasses('team1')}
           onClick={() => handleTeamClick('team1')}
         >
-          <div className="flex justify-between items-center">
-            <span className="flex-1 truncate">{match.team1}</span>
+          <div className="flex justify-between items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {match.team1Logo && (
+                <img
+                  src={match.team1Logo.startsWith('//') ? `https:${match.team1Logo}` : match.team1Logo}
+                  alt={`${match.team1} logo`}
+                  className="w-6 h-6 object-contain flex-shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+              {match.team1Seed && (
+                <span className="text-xs font-bold text-gray-500 flex-shrink-0">
+                  {match.team1Seed}
+                </span>
+              )}
+              <span className="truncate">{match.team1}</span>
+            </div>
             {isCompleted && match.sets && (
-              <span className="ml-2 font-bold text-gray-900">{getScore('team1')}</span>
+              <span className="ml-2 font-bold text-gray-900 flex-shrink-0">{getScore('team1')}</span>
             )}
           </div>
         </div>
@@ -113,10 +151,27 @@ export default function MatchCard({ match, onPredict }: MatchCardProps) {
           className={getTeamClasses('team2')}
           onClick={() => handleTeamClick('team2')}
         >
-          <div className="flex justify-between items-center">
-            <span className="flex-1 truncate">{match.team2}</span>
+          <div className="flex justify-between items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {match.team2Logo && (
+                <img
+                  src={match.team2Logo.startsWith('//') ? `https:${match.team2Logo}` : match.team2Logo}
+                  alt={`${match.team2} logo`}
+                  className="w-6 h-6 object-contain flex-shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+              {match.team2Seed && (
+                <span className="text-xs font-bold text-gray-500 flex-shrink-0">
+                  {match.team2Seed}
+                </span>
+              )}
+              <span className="truncate">{match.team2}</span>
+            </div>
             {isCompleted && match.sets && (
-              <span className="ml-2 font-bold text-gray-900">{getScore('team2')}</span>
+              <span className="ml-2 font-bold text-gray-900 flex-shrink-0">{getScore('team2')}</span>
             )}
           </div>
         </div>
