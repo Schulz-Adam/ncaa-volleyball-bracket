@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import Login from './pages/Login';
@@ -8,19 +8,29 @@ import MaintenanceMode from './components/MaintenanceMode';
 
 function App() {
   const { initAuth } = useAuthStore();
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check maintenance mode from JSON file
+    fetch('/maintenance.json')
+      .then(res => res.json())
+      .then(data => {
+        setIsMaintenanceMode(data.enabled === true);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        // If fetch fails, assume not in maintenance mode
+        setIsMaintenanceMode(false);
+        setIsLoading(false);
+      });
+
     initAuth();
   }, [initAuth]);
 
-  // Check if maintenance mode is enabled
-  const maintenanceValue = import.meta.env.VITE_MAINTENANCE_MODE;
-  const isMaintenanceMode = maintenanceValue === 'true';
-
-  // Temporary debugging
-  console.log('VITE_MAINTENANCE_MODE:', maintenanceValue);
-  console.log('isMaintenanceMode:', isMaintenanceMode);
-  console.log('All env vars:', import.meta.env);
+  if (isLoading) {
+    return null; // Or a loading spinner
+  }
 
   if (isMaintenanceMode) {
     return <MaintenanceMode />;
