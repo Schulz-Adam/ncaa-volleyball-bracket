@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,43 +10,44 @@ datasource db {
 model User {
   id          String       @id @default(uuid())
   email       String       @unique
-  password    String       // Hashed password
   displayName String?
   createdAt   DateTime     @default(now())
-
+  password    String
   predictions Prediction[]
 
   @@map("users")
 }
 
 model Match {
-  id          String    @id @default(uuid())
-  round       Int       // 1-6 (Round of 64, 32, 16, 8, 4, Championship)
+  id          String       @id @default(uuid())
+  round       Int
   matchNumber Int
   team1       String
   team2       String
-  winner      String?   // "team1" or "team2" when completed
-  completed   Boolean   @default(false)
+  winner      String?
+  completed   Boolean      @default(false)
   matchDate   DateTime
   scrapedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  sets        Set[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  team1Logo   String?
+  team1Seed   Int?
+  team2Logo   String?
+  team2Seed   Int?
   predictions Prediction[]
+  sets        Set[]
 
   @@map("matches")
 }
 
 model Set {
-  id          String   @id @default(uuid())
-  matchId     String
-  setNumber   Int      // 1-5
-  team1Score  Int
-  team2Score  Int
-  createdAt   DateTime @default(now())
-
-  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  matchId    String
+  setNumber  Int
+  team1Score Int
+  team2Score Int
+  createdAt  DateTime @default(now())
+  match      Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
   @@index([matchId])
   @@map("sets")
@@ -59,15 +57,14 @@ model Prediction {
   id                 String   @id @default(uuid())
   userId             String
   matchId            String
-  predictedWinner    String   // "team1" or "team2"
-  predictedTotalSets Int      // 3, 4, or 5
-  pointsEarned       Int?     // null until match completes
+  predictedWinner    String
+  predictedTotalSets Int
+  pointsEarned       Int?
   createdAt          DateTime @default(now())
-
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   match              Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, matchId]) // Each user can only predict each match once
+  @@unique([userId, matchId])
   @@index([userId])
   @@index([matchId])
   @@map("predictions")

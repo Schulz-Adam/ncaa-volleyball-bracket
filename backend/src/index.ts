@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import matchRoutes from './routes/matchRoutes';
-import predictionRoutes from './routes/predictionRoutes';
+import matchRoutes from './routes/matchRoutes.js';
+import predictionRoutes from './routes/predictionRoutes.js';
 
 dotenv.config();
 
