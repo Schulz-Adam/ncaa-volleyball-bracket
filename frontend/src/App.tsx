@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import MaintenanceMode from './components/MaintenanceMode';
 
 // Toggle this to enable/disable maintenance mode
+// Set to false when ready to go live on Tuesday
 const MAINTENANCE_MODE = true;
 
 function App() {
