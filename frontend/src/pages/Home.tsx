@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import type { Match, Prediction } from '../types/bracket';
-import { fetchMatches, fetchPredictions, submitPrediction } from '../services/api';
+import { fetchMatches, fetchPredictions, submitPrediction, deletePrediction, submitBracket } from '../services/api';
 import Bracket from '../components/Bracket';
+import RulesModal from '../components/RulesModal';
 
 export default function Home() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -12,6 +13,8 @@ export default function Home() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [isFirstTime, setIsFirstTime] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -36,7 +39,27 @@ export default function Home() {
       return;
     }
     loadData();
+
+    // Check if this is the user's first time
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    if (!hasSeenWelcome) {
+      setIsFirstTime(true);
+      setShowRulesModal(true);
+    }
   }, [isAuthenticated, navigate, loadData]);
+
+  const handleCloseRulesModal = () => {
+    setShowRulesModal(false);
+    if (isFirstTime) {
+      localStorage.setItem('hasSeenWelcome', 'true');
+      setIsFirstTime(false);
+    }
+  };
+
+  const handleOpenRulesModal = () => {
+    setIsFirstTime(false);
+    setShowRulesModal(true);
+  };
 
   const handleSubmitPrediction = async (
     matchId: string,
@@ -51,6 +74,37 @@ export default function Home() {
     }
   };
 
+  const handleResetPrediction = async (matchId: string) => {
+    try {
+      const prediction = predictions.find(p => p.matchId === matchId);
+      if (prediction) {
+        await deletePrediction(prediction.id);
+        setPredictions(prev => prev.filter(p => p.id !== prediction.id));
+        // Reload all data to update dependent predictions
+        await loadData();
+      }
+    } catch (err) {
+      console.error('Failed to reset prediction:', err);
+      alert('Failed to reset prediction');
+    }
+  };
+
+  const handleSubmitBracket = async () => {
+    if (!confirm('Are you sure you want to submit your bracket? You will not be able to make any more changes after submitting.')) {
+      return;
+    }
+
+    try {
+      await submitBracket();
+      alert('Bracket submitted successfully! You can no longer make changes.');
+      // Reload page to refresh user state
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to submit bracket:', err);
+      alert(err instanceof Error ? err.message : 'Failed to submit bracket');
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -61,24 +115,58 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-sm sticky top-0 z-20">
+    <div className="min-h-screen bg-white">
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-6">
-              <h1 className="text-xl font-bold text-gray-900">NCAA Volleyball Bracket</h1>
+              <h1 className="text-xl font-bold text-gray-900">VolleyTalk Bracket</h1>
               {!loading && (
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span>
-                    {matches.length} matches
-                  </span>
-                  <span className="text-blue-600 font-medium">
-                    {predictions.length} predictions
-                  </span>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <span>
+                      {matches.length} matches
+                    </span>
+                    <span className="text-blue-600 font-medium">
+                      {predictions.length} predictions
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      Bracket
+                    </button>
+                    <button
+                      disabled
+                      className="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-100 rounded-md cursor-not-allowed"
+                    >
+                      Leaderboard
+                    </button>
+                    <button
+                      onClick={handleOpenRulesModal}
+                      className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      Rules
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
             <div className="flex items-center gap-4">
+              {!user?.bracketSubmitted && (
+                <button
+                  onClick={handleSubmitBracket}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 font-medium"
+                >
+                  Submit Bracket
+                </button>
+              )}
+              {user?.bracketSubmitted && (
+                <span className="bg-green-100 text-green-800 px-4 py-2 rounded-md font-medium border border-green-300">
+                  ✓ Bracket Submitted
+                </span>
+              )}
               <span className="text-gray-700">
                 {user?.displayName || user?.email}
               </span>
@@ -133,9 +221,18 @@ export default function Home() {
             matches={matches}
             predictions={predictions}
             onSubmitPrediction={handleSubmitPrediction}
+            onResetPrediction={handleResetPrediction}
+            bracketSubmitted={user?.bracketSubmitted || false}
           />
         )}
       </main>
+
+      {/* Rules Modal */}
+      <RulesModal
+        isOpen={showRulesModal}
+        onClose={handleCloseRulesModal}
+        isFirstTime={isFirstTime}
+      />
     </div>
   );
 }

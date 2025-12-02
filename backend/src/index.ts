@@ -104,9 +104,14 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
 
 app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log('🔐 Login attempt received');
+    console.log('  Origin:', req.headers.origin);
+    console.log('  Body:', { email: req.body.email, password: req.body.password ? '***' : undefined });
+
     const { email, password } = req.body;
 
     if (!email || !password) {
+      console.log('❌ Login failed: Missing email or password');
       res.status(400).json({ error: 'Email and password are required' });
       return;
     }
@@ -116,15 +121,20 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
     });
 
     if (!user) {
+      console.log(`❌ Login failed: User not found for email: ${email.toLowerCase()}`);
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
 
+    console.log(`✅ User found: ${user.email}`);
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      console.log('❌ Login failed: Invalid password');
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
+
+    console.log('✅ Login successful!');
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
 

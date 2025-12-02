@@ -3,6 +3,8 @@ export interface User {
   email: string;
   displayName: string | null;
   createdAt: string;
+  bracketSubmitted?: boolean;
+  bracketSubmittedAt?: string | null;
 }
 
 export interface AuthResponse {

@@ -8,12 +8,14 @@ datasource db {
 }
 
 model User {
-  id          String       @id @default(uuid())
-  email       String       @unique
-  displayName String?
-  createdAt   DateTime     @default(now())
-  password    String
-  predictions Prediction[]
+  id                 String       @id @default(uuid())
+  email              String       @unique
+  displayName        String?
+  createdAt          DateTime     @default(now())
+  password           String
+  bracketSubmitted   Boolean      @default(false)
+  bracketSubmittedAt DateTime?
+  predictions        Prediction[]
 
   @@map("users")
 }

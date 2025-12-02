@@ -3,13 +3,30 @@ import type { Match, MatchWithPrediction, Prediction } from '../types/bracket';
 import { ROUND_NAMES } from '../types/bracket';
 import MatchCard from './MatchCard';
 
+
 interface BracketProps {
   matches: Match[];
   predictions: Prediction[];
   onSubmitPrediction: (matchId: string, winner: string, totalSets: number) => Promise<void>;
+  onResetPrediction: (matchId: string) => Promise<void>;
+  bracketSubmitted: boolean;
 }
 
-export default function Bracket({ matches, predictions, onSubmitPrediction }: BracketProps) {
+export default function Bracket({ matches, predictions, onSubmitPrediction, onResetPrediction, bracketSubmitted }: BracketProps) {
+
+  // Helper function to get predicted winner team name from a match
+  const getPredictedWinner = (match: Match, prediction?: Prediction): string | null => {
+    if (!prediction) return null;
+    return prediction.predictedWinner === 'team1' ? match.team1 : match.team2;
+  };
+
+  // Helper function to get team logo and seed
+  const getTeamInfo = (match: Match, team: 'team1' | 'team2') => {
+    return {
+      logo: team === 'team1' ? match.team1Logo : match.team2Logo,
+      seed: team === 'team1' ? match.team1Seed : match.team2Seed,
+    };
+  };
 
   // Organize matches by round and split into 4 quadrants
   const { topLeftBracket, topRightBracket, bottomLeftBracket, bottomRightBracket, finalFour, championship } = useMemo(() => {
@@ -22,6 +39,7 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
       6: [],
     };
 
+    // First pass: add all matches with their predictions and sort
     matches.forEach(match => {
       const prediction = predictions.find(p => p.matchId === match.id);
       grouped[match.round].push({
@@ -30,10 +48,46 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
       });
     });
 
-    // Sort by match number within each round
+    // Sort by match number within each round FIRST
     Object.keys(grouped).forEach(round => {
       grouped[Number(round)].sort((a, b) => a.matchNumber - b.matchNumber);
     });
+
+    // Second pass: populate later rounds with predicted winners
+    // For each round, check if previous round has predictions and update teams
+    for (let round = 2; round <= 6; round++) {
+      const currentRound = grouped[round];
+      const previousRound = grouped[round - 1];
+
+      currentRound.forEach((match, matchIdx) => {
+        // Each match in current round gets teams from 2 matches in previous round
+        const prevMatch1Idx = matchIdx * 2;
+        const prevMatch2Idx = matchIdx * 2 + 1;
+
+        const prevMatch1 = previousRound[prevMatch1Idx];
+        const prevMatch2 = previousRound[prevMatch2Idx];
+
+        if (prevMatch1 && prevMatch1.userPrediction) {
+          const winnerName = getPredictedWinner(prevMatch1, prevMatch1.userPrediction);
+          const winnerInfo = getTeamInfo(prevMatch1, prevMatch1.userPrediction.predictedWinner as 'team1' | 'team2');
+          if (winnerName) {
+            match.team1 = winnerName;
+            match.team1Logo = winnerInfo.logo;
+            match.team1Seed = winnerInfo.seed;
+          }
+        }
+
+        if (prevMatch2 && prevMatch2.userPrediction) {
+          const winnerName = getPredictedWinner(prevMatch2, prevMatch2.userPrediction);
+          const winnerInfo = getTeamInfo(prevMatch2, prevMatch2.userPrediction.predictedWinner as 'team1' | 'team2');
+          if (winnerName) {
+            match.team2 = winnerName;
+            match.team2Logo = winnerInfo.logo;
+            match.team2Seed = winnerInfo.seed;
+          }
+        }
+      });
+    }
 
     // Split round 1 into 4 quadrants (8 matches each)
     // Top left: matches 1-8
@@ -76,6 +130,10 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
     await onSubmitPrediction(matchId, winner, totalSets);
   };
 
+  const handleReset = async (matchId: string) => {
+    await onResetPrediction(matchId);
+  };
+
   // Calculate expected matches for each round based on standard bracket progression
   const getExpectedMatchCount = (round: number, quadrantSize: number) => {
     // Round 1: quadrantSize matches (8 for each quadrant)
@@ -88,7 +146,9 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
   const renderQuadrant = (bracket: Record<number, MatchWithPrediction[]>, label: string, isRightSide: boolean = false) => {
     const rounds = isRightSide ? [4, 3, 2, 1] : [1, 2, 3, 4];
     const quadrantSize = 8; // Each quadrant has 8 teams
-    const matchHeight = 120; // Approximate height of a match card including gap
+    const matchCardHeight = 120; // Approximate height of a match card
+    const round1Gap = 80; // Gap between Round 1 matches (accounts for set selector height)
+    const matchHeight = matchCardHeight + round1Gap; // Center-to-center distance in Round 1 (200px)
 
     return (
       <div className="flex gap-8">
@@ -105,24 +165,33 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
           // Calculate vertical spacing for proper alignment
           // Each subsequent round should be centered between pairs of previous round matches
           const spacingMultiplier = Math.pow(2, round - 1);
-          const baseMargin = (matchHeight * (spacingMultiplier - 1)) / 2;
 
           return (
             <div key={`${label}-${round}`} className="flex flex-col relative">
-              <div className="sticky top-0 bg-white z-10 pb-4 mb-4 border-b-2 border-blue-200">
-                <h3 className="text-lg font-bold text-gray-900">
+              <div className="sticky top-0 bg-white z-10 pb-2 mb-4">
+                <h3 className="text-sm font-semibold text-gray-700 text-center">
                   {ROUND_NAMES[round]}
                 </h3>
-                <p className="text-sm text-gray-600">
-                  {matches.length}/{expectedCount} matches
-                </p>
               </div>
               <div className="flex flex-col">
                 {displayMatches.map((match, idx) => {
-                  // Calculate margin for proper alignment
-                  // First match needs offset to center between previous round matches
-                  // Subsequent matches need gap to align with their feeding matches
-                  const marginTop = idx === 0 ? baseMargin : matchHeight * spacingMultiplier;
+                  // Calculate margin for proper bracket alignment
+                  let marginTop;
+
+                  if (round === 1) {
+                    // Round 1: simple gap between matches
+                    marginTop = idx === 0 ? 0 : round1Gap;
+                  } else {
+                    // Later rounds: position to be centered among groups of Round 1 matches
+                    if (idx === 0) {
+                      // Position to center between pairs of previous round matches
+                      marginTop = (spacingMultiplier / 2 - 0.5) * matchHeight;
+                    } else {
+                      // Gap between subsequent matches
+                      // Each match skips spacingMultiplier worth of Round 1 matches
+                      marginTop = matchHeight * spacingMultiplier - matchCardHeight;
+                    }
+                  }
 
                   return (
                   <div
@@ -135,13 +204,15 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
                     <MatchCard
                       match={match || undefined}
                       onPredict={handlePredict}
+                      onResetPrediction={handleReset}
                       isEmpty={!match}
+                      bracketSubmitted={bracketSubmitted}
                     />
 
                     {/* Connecting line to next round */}
                     {round < 4 && (
                       <div
-                        className={`absolute top-1/2 ${isRightSide ? '-left-8' : '-right-8'} w-8 h-px bg-blue-400`}
+                        className={`absolute top-1/2 ${isRightSide ? '-left-8' : '-right-8'} w-8 h-px bg-gray-900`}
                         style={{ zIndex: 1 }}
                       />
                     )}
@@ -149,7 +220,7 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
                     {/* Vertical connecting line between pairs */}
                     {idx % 2 === 0 && idx < displayMatches.length - 1 && (
                       <div
-                        className={`absolute ${isRightSide ? '-left-8' : '-right-8'} w-px bg-blue-400`}
+                        className={`absolute ${isRightSide ? '-left-8' : '-right-8'} w-px bg-gray-900`}
                         style={{
                           top: '50%',
                           height: `${matchHeight * spacingMultiplier}px`,
@@ -170,17 +241,15 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
 
   return (
     <>
-      <div className="bracket-container overflow-x-auto pb-8">
+      <div className="bracket-container overflow-x-auto pb-8 bg-white">
         <div className="flex flex-col gap-12 px-4">
           {/* TOP ROW - Top Left and Top Right Quadrants */}
           <div className="flex gap-8">
-            <div className="border-2 border-gray-300 rounded-lg p-4 bg-blue-50">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Top Left Region (1-8)</h2>
+            <div className="p-4">
               {renderQuadrant(topLeftBracket, 'top-left', false)}
             </div>
 
-            <div className="border-2 border-gray-300 rounded-lg p-4 bg-green-50">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Top Right Region (9-16)</h2>
+            <div className="p-4">
               {renderQuadrant(topRightBracket, 'top-right', true)}
             </div>
           </div>
@@ -189,40 +258,40 @@ export default function Bracket({ matches, predictions, onSubmitPrediction }: Br
           <div className="flex flex-col items-center justify-center gap-8 px-8">
             {/* Final Four (Semifinals) */}
             <div className="flex flex-col items-center">
-              <div className="bg-blue-600 px-6 py-2 rounded-lg shadow-lg mb-6">
-                <h3 className="text-lg font-bold text-white text-center">
+              <div className="px-6 py-2 mb-6">
+                <h3 className="text-lg font-bold text-gray-800 text-center">
                   {ROUND_NAMES[5]}
                 </h3>
+                <p className="text-sm text-gray-600 text-center">December 18</p>
               </div>
-              <div className="flex flex-col gap-8">
+              <div className="flex flex-row gap-8">
                 {finalFour.map((match) => (
-                  <MatchCard key={match.id} match={match} onPredict={handlePredict} />
+                  <MatchCard key={match.id} match={match} onPredict={handlePredict} onResetPrediction={handleReset} bracketSubmitted={bracketSubmitted} />
                 ))}
               </div>
             </div>
 
             {/* Championship */}
             <div className="flex flex-col items-center">
-              <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 px-6 py-3 rounded-lg shadow-xl mb-6">
-                <h3 className="text-xl font-bold text-white text-center">
-                  🏆 {ROUND_NAMES[6]}
+              <div className="px-6 py-3 mb-6">
+                <h3 className="text-xl font-bold text-gray-800 text-center">
+                  {ROUND_NAMES[6]}
                 </h3>
+                <p className="text-sm text-gray-600 text-center">December 21</p>
               </div>
               {championship.map(match => (
-                <MatchCard key={match.id} match={match} onPredict={handlePredict} />
+                <MatchCard key={match.id} match={match} onPredict={handlePredict} onResetPrediction={handleReset} bracketSubmitted={bracketSubmitted} />
               ))}
             </div>
           </div>
 
           {/* BOTTOM ROW - Bottom Left and Bottom Right Quadrants */}
           <div className="flex gap-8">
-            <div className="border-2 border-gray-300 rounded-lg p-4 bg-yellow-50">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Lower Left Region (17-24)</h2>
+            <div className="p-4">
               {renderQuadrant(bottomLeftBracket, 'bottom-left', false)}
             </div>
 
-            <div className="border-2 border-gray-300 rounded-lg p-4 bg-purple-50">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Lower Right Region (25-32)</h2>
+            <div className="p-4">
               {renderQuadrant(bottomRightBracket, 'bottom-right', true)}
             </div>
           </div>

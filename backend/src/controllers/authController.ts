@@ -129,6 +129,8 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
         email: true,
         displayName: true,
         createdAt: true,
+        bracketSubmitted: true,
+        bracketSubmittedAt: true,
       },
     });
 
@@ -140,6 +142,52 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
     res.status(200).json({ user });
   } catch (error) {
     console.error('Get current user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Submit bracket (finalize predictions)
+export const submitBracket = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).userId;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { bracketSubmitted: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (user.bracketSubmitted) {
+      res.status(400).json({ error: 'Bracket already submitted' });
+      return;
+    }
+
+    // Update user to mark bracket as submitted
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        bracketSubmitted: true,
+        bracketSubmittedAt: new Date(),
+      },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        bracketSubmitted: true,
+        bracketSubmittedAt: true,
+      },
+    });
+
+    res.status(200).json({
+      message: 'Bracket submitted successfully',
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error('Submit bracket error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

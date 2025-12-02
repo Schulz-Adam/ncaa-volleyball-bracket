@@ -60,3 +60,27 @@ export async function submitPrediction(
 
   return response.json();
 }
+
+export async function deletePrediction(predictionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/predictions/${predictionId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to delete prediction');
+  }
+}
+
+export async function submitBracket(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/submit-bracket`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to submit bracket');
+  }
+}

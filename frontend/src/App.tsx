@@ -8,7 +8,7 @@ import MaintenanceMode from './components/MaintenanceMode';
 
 // Toggle this to enable/disable maintenance mode
 // Set to false when ready to go live on Tuesday
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false; // LOCAL ONLY - DO NOT COMMIT
 
 function App() {
   const { initAuth } = useAuthStore();

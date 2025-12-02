@@ -4,25 +4,46 @@ import type { MatchWithPrediction } from '../types/bracket';
 interface MatchCardProps {
   match?: MatchWithPrediction;
   onPredict: (matchId: string, winner: string, totalSets: number) => void;
+  onResetPrediction?: (matchId: string) => void;
   isEmpty?: boolean;
+  bracketSubmitted?: boolean;
 }
 
-export default function MatchCard({ match, onPredict, isEmpty = false }: MatchCardProps) {
+export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty = false, bracketSubmitted = false }: MatchCardProps) {
   const [selectedWinner, setSelectedWinner] = useState<'team1' | 'team2' | null>(null);
 
-  // If empty match placeholder
-  if (isEmpty || !match) {
+  // If empty match placeholder or teams not determined yet
+  if (isEmpty || !match || !match.team1 || !match.team2 || match.team1 === 'TBD' || match.team2 === 'TBD') {
     return (
-      <div className="bg-gray-100 border-2 border-gray-300 border-dashed rounded-lg shadow-sm min-w-[200px]">
-        <div className="bg-gray-200 px-3 py-1 border-b border-gray-300">
-          <span className="text-xs font-medium text-gray-500">TBD</span>
+      <div className="bg-gray-100 border-2 border-gray-300 border-dashed rounded-lg shadow-sm min-w-[200px] h-[120px] flex flex-col">
+        {/* Header - empty but reserves space for prediction status */}
+        <div className="bg-gray-200 px-3 py-1 border-b border-gray-300 flex justify-end items-center min-h-[28px]">
+          {/* Empty space for prediction status */}
         </div>
-        <div className="divide-y divide-gray-300">
+
+        {/* Teams */}
+        <div className="divide-y divide-gray-300 flex-1">
           <div className="px-3 py-2 text-sm text-gray-400">
-            <span>Winner TBD</span>
+            <span>{match?.team1 && match.team1 !== 'TBD' ? match.team1 : 'Winner TBD'}</span>
           </div>
           <div className="px-3 py-2 text-sm text-gray-400">
-            <span>Winner TBD</span>
+            <span>{match?.team2 && match.team2 !== 'TBD' ? match.team2 : 'Winner TBD'}</span>
+          </div>
+        </div>
+
+        {/* Set Selection - disabled */}
+        <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
+          <div className="flex gap-2 justify-center items-center">
+            <span className="text-xs text-gray-600 mr-1">Sets:</span>
+            {[3, 4, 5].map(sets => (
+              <button
+                key={sets}
+                disabled
+                className="w-10 h-10 rounded border-2 font-bold text-sm border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
+              >
+                {sets}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -44,11 +65,11 @@ export default function MatchCard({ match, onPredict, isEmpty = false }: MatchCa
     }
 
     // Highlight selected team when making prediction
-    if (!isPredicted && !isCompleted && selectedWinner === team) {
+    if (!isPredicted && !isCompleted && selectedWinner === team && !bracketSubmitted) {
       return `${baseClasses} bg-blue-100 font-medium text-blue-900 cursor-pointer`;
     }
 
-    if (!isPredicted && !isCompleted) {
+    if (!isPredicted && !isCompleted && !bracketSubmitted) {
       return `${baseClasses} hover:bg-blue-50 cursor-pointer`;
     }
 
@@ -56,13 +77,13 @@ export default function MatchCard({ match, onPredict, isEmpty = false }: MatchCa
   };
 
   const handleTeamClick = (team: 'team1' | 'team2') => {
-    if (!isCompleted && !isPredicted) {
+    if (!isCompleted && !isPredicted && !bracketSubmitted) {
       setSelectedWinner(team);
     }
   };
 
   const handleSetSelection = (totalSets: number) => {
-    if (selectedWinner) {
+    if (selectedWinner && !bracketSubmitted) {
       onPredict(match.id, selectedWinner, totalSets);
       setSelectedWinner(null);
     }
@@ -90,8 +111,19 @@ export default function MatchCard({ match, onPredict, isEmpty = false }: MatchCa
     }
 
     return (
-      <div className="px-2 py-1 text-xs text-blue-700 bg-blue-100 rounded">
-        Predicted
+      <div className="flex items-center gap-1">
+        <div className="px-2 py-1 text-xs text-blue-700 bg-blue-100 rounded">
+          Predicted
+        </div>
+        {onResetPrediction && !bracketSubmitted && (
+          <button
+            onClick={() => onResetPrediction(match.id)}
+            className="w-5 h-5 flex items-center justify-center text-red-600 hover:bg-red-100 rounded transition-colors"
+            title="Reset prediction"
+          >
+            ×
+          </button>
+        )}
       </div>
     );
   };
@@ -108,17 +140,14 @@ export default function MatchCard({ match, onPredict, isEmpty = false }: MatchCa
   };
 
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow min-w-[200px]">
-      {/* Match Header */}
-      <div className="bg-gray-50 px-3 py-1 border-b border-gray-200 flex justify-between items-center">
-        <span className="text-xs font-medium text-gray-600">
-          Match {match.matchNumber}
-        </span>
+    <div className="bg-white border-2 border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow min-w-[200px] h-[120px] flex flex-col">
+      {/* Header - no match number, just prediction status */}
+      <div className="bg-gray-50 px-3 py-1 border-b border-gray-200 flex justify-end items-center min-h-[28px]">
         {getPredictionStatus()}
       </div>
 
       {/* Teams */}
-      <div className="divide-y divide-gray-200">
+      <div className="divide-y divide-gray-200 flex-1">
         <div
           className={getTeamClasses('team1')}
           onClick={() => handleTeamClick('team1')}
@@ -210,18 +239,6 @@ export default function MatchCard({ match, onPredict, isEmpty = false }: MatchCa
           </div>
         </div>
       )}
-
-      {/* Match Date */}
-      <div className="px-3 py-1 bg-gray-50 border-t border-gray-200">
-        <span className="text-xs text-gray-500">
-          {new Date(match.matchDate).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-          })}
-        </span>
-      </div>
     </div>
   );
 }
