@@ -14,6 +14,7 @@ interface AuthState {
   logout: () => void;
   clearError: () => void;
   initAuth: () => void;
+  updateUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -83,5 +84,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     const user = authService.getStoredUser();
     const isAuthenticated = authService.isAuthenticated();
     set({ user, isAuthenticated });
+  },
+
+  updateUser: (user: User) => {
+    set({ user });
+    // Also update in localStorage
+    localStorage.setItem('user', JSON.stringify(user));
   },
 }));

@@ -7,7 +7,7 @@ import Bracket from '../components/Bracket';
 import RulesModal from '../components/RulesModal';
 
 export default function Home() {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, updateUser } = useAuthStore();
   const navigate = useNavigate();
   const [matches, setMatches] = useState<Match[]>([]);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
@@ -95,10 +95,9 @@ export default function Home() {
     }
 
     try {
-      await submitBracket();
+      const response = await submitBracket();
+      updateUser(response.user);
       alert('Bracket submitted successfully! You can no longer make changes.');
-      // Reload page to refresh user state
-      window.location.reload();
     } catch (err) {
       console.error('Failed to submit bracket:', err);
       alert(err instanceof Error ? err.message : 'Failed to submit bracket');

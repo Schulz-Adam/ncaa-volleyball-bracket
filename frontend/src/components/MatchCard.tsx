@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { MatchWithPrediction } from '../types/bracket';
 
 interface MatchCardProps {
@@ -11,6 +11,16 @@ interface MatchCardProps {
 
 export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty = false, bracketSubmitted = false }: MatchCardProps) {
   const [selectedWinner, setSelectedWinner] = useState<'team1' | 'team2' | null>(null);
+
+  // Reset selectedWinner when prediction is removed, match changes, or teams change
+  useEffect(() => {
+    // Reset if no prediction or if teams changed (which happens when dependent predictions are reset)
+    if (match) {
+      if (!match.userPrediction || match.team1 === 'TBD' || match.team2 === 'TBD') {
+        setSelectedWinner(null);
+      }
+    }
+  }, [match?.userPrediction, match?.id, match?.team1, match?.team2]);
 
   // If empty match placeholder or teams not determined yet
   if (isEmpty || !match || !match.team1 || !match.team2 || match.team1 === 'TBD' || match.team2 === 'TBD') {

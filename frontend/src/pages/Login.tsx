@@ -22,7 +22,7 @@ export default function Login() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">NCAA Volleyball</h1>
+          <h1 className="text-3xl font-bold text-gray-900">VolleyTalk NCAA Bracket</h1>
           <p className="text-gray-600 mt-2">Sign in to your account</p>
         </div>
 
@@ -78,12 +78,6 @@ export default function Login() {
             <Link to="/signup" className="text-blue-600 hover:text-blue-700 font-medium">
               Sign up
             </Link>
-          </p>
-        </div>
-
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
-            Test account: alice@example.com / password123
           </p>
         </div>
       </div>

@@ -61,8 +61,21 @@ export default function Bracket({ matches, predictions, onSubmitPrediction, onRe
 
       currentRound.forEach((match, matchIdx) => {
         // Each match in current round gets teams from 2 matches in previous round
-        const prevMatch1Idx = matchIdx * 2;
-        const prevMatch2Idx = matchIdx * 2 + 1;
+        let prevMatch1Idx: number;
+        let prevMatch2Idx: number;
+
+        // Special handling for Final Four (round 5)
+        // Left semifinal gets top-left (0) and bottom-left (2) Elite 8 winners
+        // Right semifinal gets top-right (1) and bottom-right (3) Elite 8 winners
+        if (round === 5) {
+          // Round 5 (Final Four): pair matches 0-2 and 1-3 from Elite 8
+          prevMatch1Idx = matchIdx; // 0 or 1
+          prevMatch2Idx = matchIdx + 2; // 2 or 3
+        } else {
+          // Normal pairing: matches pair sequentially (0-1, 2-3, 4-5, etc.)
+          prevMatch1Idx = matchIdx * 2;
+          prevMatch2Idx = matchIdx * 2 + 1;
+        }
 
         const prevMatch1 = previousRound[prevMatch1Idx];
         const prevMatch2 = previousRound[prevMatch2Idx];

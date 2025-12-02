@@ -73,7 +73,7 @@ export async function deletePrediction(predictionId: string): Promise<void> {
   }
 }
 
-export async function submitBracket(): Promise<void> {
+export async function submitBracket(): Promise<{ user: any }> {
   const response = await fetch(`${API_BASE_URL}/auth/submit-bracket`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -83,4 +83,6 @@ export async function submitBracket(): Promise<void> {
     const error = await response.json();
     throw new Error(error.message || 'Failed to submit bracket');
   }
+
+  return response.json();
 }

@@ -5,6 +5,60 @@ import { authenticateToken, AuthRequest } from '../middleware/auth.js';
 const router = Router();
 const prisma = new PrismaClient();
 
+// Helper function to delete a prediction and all dependent predictions in later rounds
+async function deletePredictionWithCascade(userId: string, matchId: string, currentRound: number): Promise<void> {
+  // Delete the prediction for this match
+  await prisma.prediction.deleteMany({
+    where: {
+      userId,
+      matchId,
+    },
+  });
+
+  // If this is the championship match (round 6), no further cascade needed
+  if (currentRound >= 6) {
+    return;
+  }
+
+  // Get the current match details to find dependent matches
+  const currentMatch = await prisma.match.findUnique({
+    where: { id: matchId },
+  });
+
+  if (!currentMatch) {
+    return;
+  }
+
+  // Find all matches in the next round that could have received a team from this match
+  // Based on bracket structure: match N in round R feeds into match ceil(N/2) in round R+1
+  const nextRoundMatchNumber = Math.ceil(currentMatch.matchNumber / 2);
+
+  // Find the match in the next round
+  const nextRoundMatch = await prisma.match.findFirst({
+    where: {
+      round: currentRound + 1,
+      matchNumber: nextRoundMatchNumber,
+    },
+  });
+
+  if (!nextRoundMatch) {
+    return;
+  }
+
+  // Check if there's a prediction for the next round match
+  const nextRoundPrediction = await prisma.prediction.findFirst({
+    where: {
+      userId,
+      matchId: nextRoundMatch.id,
+    },
+  });
+
+  // If there's a prediction in the next round, recursively delete it and its dependents
+  if (nextRoundPrediction) {
+    await deletePredictionWithCascade(userId, nextRoundMatch.id, currentRound + 1);
+  }
+}
+
 // Get all predictions for the current user
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -180,14 +234,8 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Cannot delete prediction for completed match' });
     }
 
-    // Delete this prediction (which will cascade to dependent predictions via triggers/logic)
-    await prisma.prediction.delete({
-      where: { id },
-    });
-
-    // TODO: Also delete predictions in later rounds that depend on this prediction
-    // For now, we'll just delete this one prediction
-    // In a full implementation, you would recursively delete dependent predictions
+    // Delete this prediction and cascade to dependent predictions
+    await deletePredictionWithCascade(userId, prediction.matchId, prediction.match.round);
 
     res.json({ message: 'Prediction deleted successfully' });
   } catch (error) {
