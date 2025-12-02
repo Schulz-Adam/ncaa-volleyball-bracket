@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { prisma } from '../lib/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Helper function to delete a prediction and all dependent predictions in later rounds
 async function deletePredictionWithCascade(userId: string, matchId: string, currentRound: number): Promise<void> {

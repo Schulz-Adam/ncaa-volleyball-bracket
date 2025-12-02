@@ -1,18 +1,17 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import matchRoutes from './routes/matchRoutes.js';
 import predictionRoutes from './routes/predictionRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import { prisma } from './lib/prisma.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const prisma = new PrismaClient();
 
 // Middleware
 app.use(cors({
