@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import matchRoutes from './routes/matchRoutes.js';
 import predictionRoutes from './routes/predictionRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import { prisma } from './lib/prisma.js';
 
 dotenv.config();
@@ -47,6 +48,11 @@ app.get('/api', (req, res) => {
         create: 'POST /api/predictions',
         update: 'PUT /api/predictions/:id'
       },
+      admin: {
+        completeMatch: 'POST /api/admin/matches/:id/complete',
+        recalculate: 'POST /api/admin/matches/:id/recalculate',
+        completedMatches: 'GET /api/admin/matches/completed'
+      },
       health: 'GET /health'
     }
   });
@@ -56,6 +62,7 @@ app.get('/api', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/predictions', predictionRoutes);
+app.use('/api/admin', adminRoutes);
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
