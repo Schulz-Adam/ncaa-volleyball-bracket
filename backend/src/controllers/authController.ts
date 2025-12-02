@@ -124,7 +124,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
   try {
     // User ID will be attached by auth middleware
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -153,7 +153,7 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
 // Submit bracket (finalize predictions)
 export const submitBracket = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
