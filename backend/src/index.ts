@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import matchRoutes from './routes/matchRoutes.js';
 import predictionRoutes from './routes/predictionRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
 
@@ -53,105 +54,9 @@ app.get('/api', (req, res) => {
 });
 
 // Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/predictions', predictionRoutes);
-
-// Auth routes - inline for now
-app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, password, displayName } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' });
-      return;
-    }
-
-    const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
-
-    if (existingUser) {
-      res.status(400).json({ error: 'User with this email already exists' });
-      return;
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        displayName: displayName || email.split('@')[0],
-      },
-    });
-
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-
-    res.status(201).json({
-      message: 'User created successfully',
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-      },
-      token,
-    });
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> => {
-  try {
-    console.log('🔐 Login attempt received');
-    console.log('  Origin:', req.headers.origin);
-    console.log('  Body:', { email: req.body.email, password: req.body.password ? '***' : undefined });
-
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      console.log('❌ Login failed: Missing email or password');
-      res.status(400).json({ error: 'Email and password are required' });
-      return;
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
-
-    if (!user) {
-      console.log(`❌ Login failed: User not found for email: ${email.toLowerCase()}`);
-      res.status(401).json({ error: 'Invalid email or password' });
-      return;
-    }
-
-    console.log(`✅ User found: ${user.email}`);
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      console.log('❌ Login failed: Invalid password');
-      res.status(401).json({ error: 'Invalid email or password' });
-      return;
-    }
-
-    console.log('✅ Login successful!');
-
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-
-    res.status(200).json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-      },
-      token,
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

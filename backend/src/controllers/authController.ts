@@ -61,6 +61,8 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         email: user.email,
         displayName: user.displayName,
+        bracketSubmitted: user.bracketSubmitted,
+        bracketSubmittedAt: user.bracketSubmittedAt,
       },
       token,
     });
@@ -107,6 +109,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         email: user.email,
         displayName: user.displayName,
+        bracketSubmitted: user.bracketSubmitted,
+        bracketSubmittedAt: user.bracketSubmittedAt,
       },
       token,
     });
