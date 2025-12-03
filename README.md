@@ -1,105 +1,36 @@
-# NCAA Women's Volleyball Tournament Bracket
-
-A full-stack application for predicting NCAA Women's Volleyball tournament results with live scoring and leaderboards.
-
-## Tech Stack
-
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS
-- **Backend**: Node.js + Express + TypeScript + Prisma
-- **Database**: PostgreSQL
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-### Prerequisites
-- Node.js 18+
-- PostgreSQL (or use Supabase/Neon free tier)
-- npm or yarn
+First, run the development server:
 
-### Installation
-
-1. Clone the repository
-```bash
-git clone <your-repo-url>
-cd ncaa-volleyball-bracket
-```
-
-2. Install all dependencies
-```bash
-npm run install:all
-```
-
-3. Set up environment variables
-- Copy `backend/.env.example` to `backend/.env`
-- Copy `frontend/.env.local.example` to `frontend/.env.local`
-- Update with your database credentials
-
-4. Set up database
-```bash
-cd backend
-npx prisma migrate dev --name init
-npx prisma generate
-cd ..
-```
-
-5. Run development servers
 ```bash
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-This starts:
-- Frontend: http://localhost:3000
-- Backend: http://localhost:5000
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Project Structure
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-```
-ncaa-volleyball-bracket/
-├── frontend/          # React frontend
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── types/
-│   └── package.json
-├── backend/           # Express backend
-│   ├── src/
-│   │   ├── routes/
-│   │   ├── controllers/
-│   │   ├── middleware/
-│   │   └── utils/
-│   ├── prisma/
-│   │   └── schema.prisma
-│   └── package.json
-└── package.json       # Root package.json
-```
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Available Scripts
+## Learn More
 
-- `npm run dev` - Run both frontend and backend
-- `npm run dev:frontend` - Run only frontend
-- `npm run dev:backend` - Run only backend
-- `npm run build` - Build both apps
-- `npm run prisma:studio` - Open Prisma Studio
+To learn more about Next.js, take a look at the following resources:
 
-## Database Setup
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-### Option 1: Local PostgreSQL
-Install PostgreSQL and create a database:
-```bash
-createdb volleyball_bracket
-```
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-### Option 2: Supabase (Free Tier)
-1. Go to https://supabase.com
-2. Create a new project
-3. Copy the connection string to `backend/.env`
+## Deploy on Vercel
 
-### Option 3: Neon (Free Tier)
-1. Go to https://neon.tech
-2. Create a new project
-3. Copy the connection string to `backend/.env`
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-## Next Steps
-
-See `01-initialize-repository-guide.md` for detailed setup instructions.
-See `ncaa-volleyball-bracket-implementation-plan.md` for full implementation plan.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
