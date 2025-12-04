@@ -12,6 +12,11 @@ export default function Signup() {
   const { signup, isLoading, error, isAuthenticated, initAuth } = useAuthStore();
   const router = useRouter();
 
+  // Redirect to login - signups are closed
+  useEffect(() => {
+    router.push('/login');
+  }, [router]);
+
   useEffect(() => {
     initAuth();
   }, [initAuth]);

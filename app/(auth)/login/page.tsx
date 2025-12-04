@@ -88,9 +88,12 @@ export default function Login() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-blue-600 hover:text-blue-700 font-medium">
+            <span className="text-gray-400 font-medium cursor-not-allowed" title="Signups are now closed">
               Sign up
-            </Link>
+            </span>
+          </p>
+          <p className="text-xs text-gray-500 mt-2">
+            New signups are now closed
           </p>
         </div>
       </div>

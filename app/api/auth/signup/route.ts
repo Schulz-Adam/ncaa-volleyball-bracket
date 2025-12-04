@@ -3,6 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword, generateToken } from '@/lib/auth';
 
 export async function POST(request: Request) {
+  // Signups are closed
+  return NextResponse.json(
+    { error: 'New signups are now closed. The bracket submission period has ended.' },
+    { status: 403 }
+  );
+
+  /* Disabled - signups are closed
   try {
     const { email, displayName, password } = await request.json();
 
@@ -69,4 +76,5 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+  */
 }
