@@ -65,6 +65,13 @@ jobs:
       - name: Install Chrome
         run: npx puppeteer browsers install chrome
 
+      - name: Test database connectivity
+        run: |
+          echo "Testing connection to Supabase..."
+          npx prisma db execute --stdin <<< "SELECT 1;" || echo "Direct connection failed"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Run NCAA scraper
         run: npx tsx scripts/scrape-results.ts
         env:
