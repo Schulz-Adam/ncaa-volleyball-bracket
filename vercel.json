@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/cron/scrape-results/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
