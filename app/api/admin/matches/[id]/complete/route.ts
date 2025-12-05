@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthFromRequest } from '@/lib/auth';
-import { calculatePoints, determineWinner, calculateTotalSets } from '@/utils/pointCalculation';
+import { calculatePoints } from '@/utils/pointCalculation';
 
 export async function POST(
   request: Request,
@@ -17,12 +17,12 @@ export async function POST(
     }
 
     const { id } = await params;
-    const { winner, sets } = await request.json();
+    const { winner, team1Sets, team2Sets } = await request.json();
 
     // Validation
-    if (!winner || !sets || !Array.isArray(sets)) {
+    if (!winner || team1Sets === undefined || team2Sets === undefined) {
       return NextResponse.json(
-        { error: 'Winner and sets array are required' },
+        { error: 'Winner, team1Sets, and team2Sets are required' },
         { status: 400 }
       );
     }
@@ -34,14 +34,21 @@ export async function POST(
       );
     }
 
-    // Validate sets format
-    for (const set of sets) {
-      if (typeof set.team1Score !== 'number' || typeof set.team2Score !== 'number') {
-        return NextResponse.json(
-          { error: 'Each set must have team1Score and team2Score' },
-          { status: 400 }
-        );
-      }
+    // Validate set counts
+    if (typeof team1Sets !== 'number' || typeof team2Sets !== 'number') {
+      return NextResponse.json(
+        { error: 'team1Sets and team2Sets must be numbers' },
+        { status: 400 }
+      );
+    }
+
+    // Validate winner matches set counts (winner should have at least 3 sets)
+    const winnerSets = winner === 'team1' ? team1Sets : team2Sets;
+    if (winnerSets < 3) {
+      return NextResponse.json(
+        { error: 'Winner must have won at least 3 sets' },
+        { status: 400 }
+      );
     }
 
     // Get match
@@ -66,16 +73,7 @@ export async function POST(
       );
     }
 
-    // Verify winner matches set results
-    const calculatedWinner = determineWinner(sets);
-    if (calculatedWinner !== winner) {
-      return NextResponse.json(
-        { error: `Winner "${winner}" does not match set results (calculated: "${calculatedWinner}")` },
-        { status: 400 }
-      );
-    }
-
-    const totalSets = calculateTotalSets(sets);
+    const totalSets = team1Sets + team2Sets;
 
     // Update match as completed
     await prisma.match.update({
@@ -83,21 +81,9 @@ export async function POST(
       data: {
         completed: true,
         winner,
+        team1Sets,
+        team2Sets,
       },
-    });
-
-    // Delete existing sets and create new ones
-    await prisma.set.deleteMany({
-      where: { matchId: id },
-    });
-
-    await prisma.set.createMany({
-      data: sets.map((set: { team1Score: number; team2Score: number }, index: number) => ({
-        matchId: id,
-        setNumber: index + 1,
-        team1Score: set.team1Score,
-        team2Score: set.team2Score,
-      })),
     });
 
     // Calculate and update points for all predictions
@@ -131,6 +117,8 @@ export async function POST(
         team1: match.team1,
         team2: match.team2,
         winner,
+        team1Sets,
+        team2Sets,
         totalSets,
         completed: true,
       },

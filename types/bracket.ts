@@ -1,12 +1,3 @@
-export interface Set {
-  id: string;
-  matchId: string;
-  setNumber: number;
-  team1Score: number;
-  team2Score: number;
-  createdAt: string;
-}
-
 export interface Match {
   id: string;
   round: number; // 1-6 (Round of 64, 32, 16, 8, 4, Championship)
@@ -17,13 +8,14 @@ export interface Match {
   team2Logo: string | null;
   team1Seed: number | null;
   team2Seed: number | null;
+  team1Sets: number | null;
+  team2Sets: number | null;
   winner: string | null; // "team1" or "team2" when completed
   completed: boolean;
   matchDate: string;
   scrapedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  sets?: Set[];
 }
 
 export interface Prediction {

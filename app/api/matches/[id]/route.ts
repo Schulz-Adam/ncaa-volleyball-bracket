@@ -19,13 +19,6 @@ export async function GET(
 
     const match = await prisma.match.findUnique({
       where: { id },
-      include: {
-        sets: {
-          orderBy: {
-            setNumber: 'asc',
-          },
-        },
-      },
     });
 
     if (!match) {

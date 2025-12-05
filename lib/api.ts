@@ -1,5 +1,6 @@
 import type { Match, Prediction } from '@/types/bracket';
 import type { User } from '@/types/auth';
+import type { LeaderboardEntry } from '@/types/leaderboard';
 
 function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -82,6 +83,33 @@ export async function submitBracket(): Promise<{ user: User; message: string }> 
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || error.error || 'Failed to submit bracket');
+  }
+
+  return response.json();
+}
+
+export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
+  const response = await fetch('/api/leaderboard', {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch leaderboard');
+  }
+
+  return response.json();
+}
+
+export async function fetchUserPredictions(userId: string): Promise<{
+  user: User;
+  predictions: Prediction[];
+}> {
+  const response = await fetch(`/api/users/${userId}/predictions`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch user predictions');
   }
 
   return response.json();

@@ -13,13 +13,6 @@ export async function GET(request: Request) {
     }
 
     const matches = await prisma.match.findMany({
-      include: {
-        sets: {
-          orderBy: {
-            setNumber: 'asc',
-          },
-        },
-      },
       orderBy: [
         { round: 'asc' },
         { matchNumber: 'asc' },

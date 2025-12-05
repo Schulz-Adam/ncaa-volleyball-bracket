@@ -31,5 +31,8 @@ Thumbs.db
 # Prisma
 prisma/migrations/
 
+# Backups
+backups/
+
 .vercel
 .env*.local

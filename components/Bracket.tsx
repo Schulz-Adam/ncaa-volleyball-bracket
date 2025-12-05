@@ -12,9 +12,10 @@ interface BracketProps {
   onSubmitPrediction: (matchId: string, winner: string, totalSets: number) => Promise<void>;
   onResetPrediction: (matchId: string) => Promise<void>;
   bracketSubmitted: boolean;
+  readOnly?: boolean;
 }
 
-export default function Bracket({ matches, predictions, onSubmitPrediction, onResetPrediction, bracketSubmitted }: BracketProps) {
+export default function Bracket({ matches, predictions, onSubmitPrediction, onResetPrediction, bracketSubmitted, readOnly = false }: BracketProps) {
 
   // Helper function to get predicted winner team name from a match
   const getPredictedWinner = (match: Match, prediction?: Prediction): string | null => {
@@ -222,6 +223,7 @@ export default function Bracket({ matches, predictions, onSubmitPrediction, onRe
                       onResetPrediction={handleReset}
                       isEmpty={!match}
                       bracketSubmitted={bracketSubmitted}
+                      readOnly={readOnly}
                     />
 
                     {/* Connecting line to next round */}
@@ -281,7 +283,7 @@ export default function Bracket({ matches, predictions, onSubmitPrediction, onRe
               </div>
               <div className="flex flex-row gap-8">
                 {finalFour.map((match) => (
-                  <MatchCard key={match.id} match={match} onPredict={handlePredict} onResetPrediction={handleReset} bracketSubmitted={bracketSubmitted} />
+                  <MatchCard key={match.id} match={match} onPredict={handlePredict} onResetPrediction={handleReset} bracketSubmitted={bracketSubmitted} readOnly={readOnly} />
                 ))}
               </div>
             </div>
@@ -295,7 +297,7 @@ export default function Bracket({ matches, predictions, onSubmitPrediction, onRe
                 <p className="text-sm text-gray-600 text-center">December 21</p>
               </div>
               {championship.map(match => (
-                <MatchCard key={match.id} match={match} onPredict={handlePredict} onResetPrediction={handleReset} bracketSubmitted={bracketSubmitted} />
+                <MatchCard key={match.id} match={match} onPredict={handlePredict} onResetPrediction={handleReset} bracketSubmitted={bracketSubmitted} readOnly={readOnly} />
               ))}
             </div>
           </div>

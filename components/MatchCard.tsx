@@ -9,9 +9,10 @@ interface MatchCardProps {
   onResetPrediction?: (matchId: string) => void;
   isEmpty?: boolean;
   bracketSubmitted?: boolean;
+  readOnly?: boolean;
 }
 
-export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty = false, bracketSubmitted = false }: MatchCardProps) {
+export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty = false, bracketSubmitted = false, readOnly = false }: MatchCardProps) {
   const [selectedWinner, setSelectedWinner] = useState<'team1' | 'team2' | null>(null);
 
   // Reset selectedWinner when prediction is removed, match changes, or teams change
@@ -64,24 +65,45 @@ export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty
 
   const isPredicted = !!match.userPrediction;
   const isCompleted = match.completed;
+  const isInteractive = !bracketSubmitted && !readOnly;
 
   const getTeamClasses = (team: 'team1' | 'team2') => {
     const baseClasses = 'px-3 py-2 text-sm transition-colors';
 
-    if (isCompleted && match.winner === team) {
-      return `${baseClasses} bg-green-100 font-semibold text-green-900`;
+    // For completed matches with predictions
+    if (isCompleted && isPredicted && match.userPrediction) {
+      const userPredictedThisTeam = match.userPrediction.predictedWinner === team;
+      const thisTeamWon = match.winner === team;
+
+      // User predicted this team
+      if (userPredictedThisTeam) {
+        // And they won - green background
+        if (thisTeamWon) {
+          return `${baseClasses} bg-green-100 font-semibold text-green-900`;
+        }
+        // But they lost - red background
+        else {
+          return `${baseClasses} bg-red-100 font-semibold text-red-900`;
+        }
+      }
+
+      // User didn't predict this team, just show normally
+      if (thisTeamWon) {
+        return `${baseClasses} font-semibold text-gray-900`;
+      }
     }
 
-    if (isPredicted && match.userPrediction?.predictedWinner === team) {
+    // For incomplete matches with predictions
+    if (!isCompleted && isPredicted && match.userPrediction?.predictedWinner === team) {
       return `${baseClasses} bg-blue-50 font-medium text-blue-900`;
     }
 
     // Highlight selected team when making prediction
-    if (!isPredicted && !isCompleted && selectedWinner === team && !bracketSubmitted) {
+    if (!isPredicted && !isCompleted && selectedWinner === team && isInteractive) {
       return `${baseClasses} bg-blue-100 font-medium text-blue-900 cursor-pointer`;
     }
 
-    if (!isPredicted && !isCompleted && !bracketSubmitted) {
+    if (!isPredicted && !isCompleted && isInteractive) {
       return `${baseClasses} hover:bg-blue-50 cursor-pointer`;
     }
 
@@ -89,13 +111,13 @@ export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty
   };
 
   const handleTeamClick = (team: 'team1' | 'team2') => {
-    if (!isCompleted && !isPredicted && !bracketSubmitted) {
+    if (!isCompleted && !isPredicted && isInteractive) {
       setSelectedWinner(team);
     }
   };
 
   const handleSetSelection = (totalSets: number) => {
-    if (selectedWinner && !bracketSubmitted) {
+    if (selectedWinner && isInteractive) {
       onPredict(match.id, selectedWinner, totalSets);
       setSelectedWinner(null);
     }
@@ -110,24 +132,22 @@ export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty
       if (prediction.pointsEarned !== null && prediction.pointsEarned > 0) {
         return (
           <div className="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded">
-            +{prediction.pointsEarned} pts
+            +{prediction.pointsEarned.toFixed(2)} pts
           </div>
         );
       } else if (prediction.pointsEarned === 0) {
         return (
           <div className="px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded">
-            0 pts
+            0.00 pts
           </div>
         );
       }
     }
 
+    // Don't show "Predicted" badge, only show reset button if interactive
     return (
       <div className="flex items-center gap-1">
-        <div className="px-2 py-1 text-xs text-blue-700 bg-blue-100 rounded">
-          Predicted
-        </div>
-        {onResetPrediction && !bracketSubmitted && (
+        {onResetPrediction && isInteractive && (
           <button
             onClick={() => onResetPrediction(match.id)}
             className="w-5 h-5 flex items-center justify-center text-red-600 hover:bg-red-100 rounded transition-colors"
@@ -141,14 +161,10 @@ export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty
   };
 
   const getScore = (team: 'team1' | 'team2') => {
-    if (!match.sets || match.sets.length === 0) return null;
-
-    const wins = match.sets.filter(set => {
-      const team1Won = set.team1Score > set.team2Score;
-      return team === 'team1' ? team1Won : !team1Won;
-    }).length;
-
-    return wins;
+    if (team === 'team1') {
+      return match.team1Sets;
+    }
+    return match.team2Sets;
   };
 
   return (
@@ -183,7 +199,7 @@ export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty
               )}
               <span className="truncate">{match.team1}</span>
             </div>
-            {isCompleted && match.sets && (
+            {isCompleted && match.team1Sets !== null && (
               <span className="ml-2 font-bold text-gray-900 flex-shrink-0">{getScore('team1')}</span>
             )}
           </div>
@@ -211,7 +227,7 @@ export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty
               )}
               <span className="truncate">{match.team2}</span>
             </div>
-            {isCompleted && match.sets && (
+            {isCompleted && match.team2Sets !== null && (
               <span className="ml-2 font-bold text-gray-900 flex-shrink-0">{getScore('team2')}</span>
             )}
           </div>
@@ -243,8 +259,8 @@ export default function MatchCard({ match, onPredict, onResetPrediction, isEmpty
         </div>
       )}
 
-      {/* Show prediction details if already predicted */}
-      {!isCompleted && isPredicted && match.userPrediction && (
+      {/* Show prediction details if already predicted (even if completed) */}
+      {isPredicted && match.userPrediction && (
         <div className="px-3 py-2 bg-blue-50 border-t border-blue-200">
           <div className="text-xs text-center text-blue-800">
             Predicted {match.userPrediction.predictedTotalSets} sets

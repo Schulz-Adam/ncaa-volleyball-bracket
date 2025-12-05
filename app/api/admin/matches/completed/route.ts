@@ -15,9 +15,6 @@ export async function GET(request: Request) {
     const matches = await prisma.match.findMany({
       where: { completed: true },
       include: {
-        sets: {
-          orderBy: { setNumber: 'asc' },
-        },
         predictions: {
           select: {
             id: true,

@@ -36,23 +36,11 @@ model Match {
   team1Seed   Int?
   team2Logo   String?
   team2Seed   Int?
+  team1Sets   Int?
+  team2Sets   Int?
   predictions Prediction[]
-  sets        Set[]
 
   @@map("matches")
-}
-
-model Set {
-  id         String   @id @default(uuid())
-  matchId    String
-  setNumber  Int
-  team1Score Int
-  team2Score Int
-  createdAt  DateTime @default(now())
-  match      Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
-
-  @@index([matchId])
-  @@map("sets")
 }
 
 model Prediction {
@@ -61,7 +49,7 @@ model Prediction {
   matchId            String
   predictedWinner    String
   predictedTotalSets Int
-  pointsEarned       Int?
+  pointsEarned       Float?
   createdAt          DateTime @default(now())
   match              Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)

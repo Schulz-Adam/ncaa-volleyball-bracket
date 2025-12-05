@@ -22,9 +22,6 @@ export async function POST(
       where: { id },
       include: {
         predictions: true,
-        sets: {
-          orderBy: { setNumber: 'asc' },
-        },
       },
     });
 
@@ -42,7 +39,8 @@ export async function POST(
       );
     }
 
-    const totalSets = calculateTotalSets(match.sets);
+    // Calculate total sets from team1Sets and team2Sets
+    const totalSets = (match.team1Sets || 0) + (match.team2Sets || 0);
 
     // Recalculate points for all predictions
     const pointUpdates = match.predictions.map((prediction) => {
