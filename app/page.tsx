@@ -7,6 +7,7 @@ import type { Match, Prediction } from '@/types/bracket';
 import { fetchMatches, fetchPredictions, submitPrediction, deletePrediction, submitBracket } from '@/lib/api';
 import Bracket from '@/components/Bracket';
 import RulesModal from '@/components/RulesModal';
+import Link from 'next/link';
 
 export default function Home() {
   const { user, isAuthenticated, logout, updateUser, initAuth } = useAuthStore();
@@ -137,11 +138,20 @@ export default function Home() {
               {!loading && (
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <span>
-                      {matches.length} matches
+                    <span className="text-green-600 font-medium">
+                      {predictions && predictions.length > 0
+                        ? predictions.reduce((sum, p) => sum + (p.pointsEarned || 0), 0).toFixed(2)
+                        : '0.00'} points
                     </span>
                     <span className="text-blue-600 font-medium">
-                      {predictions.length} predictions
+                      {(() => {
+                        const completedMatches = matches?.filter(m => m.completed) || [];
+                        const correctPredictions = predictions?.filter(p => {
+                          const match = matches?.find(m => m.id === p.matchId);
+                          return match?.completed && match?.winner === p.predictedWinner;
+                        }) || [];
+                        return `${correctPredictions.length}/${completedMatches.length} correct`;
+                      })()}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -150,12 +160,11 @@ export default function Home() {
                     >
                       Bracket
                     </button>
-                    <button
-                      disabled
-                      className="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-100 rounded-md cursor-not-allowed"
-                    >
-                      Leaderboard
-                    </button>
+                    <Link href="/leaderboard">
+                      <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Leaderboard
+                      </button>
+                    </Link>
                     <button
                       onClick={handleOpenRulesModal}
                       className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"

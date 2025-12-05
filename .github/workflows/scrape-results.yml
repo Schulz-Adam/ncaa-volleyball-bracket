@@ -1,0 +1,69 @@
+name: Scrape NCAA Tournament Results
+
+on:
+  schedule:
+    # Thursday-Sunday 12pm-3pm PST (20:00-23:00 UTC on Thu/Fri/Sat/Sun)
+    - cron: '0 20-23 * * 4,5,6,0'
+    # Thursday-Sunday 4pm-12am PST (00:00-08:00 UTC on Fri/Sat/Sun/Mon)
+    - cron: '0 0-8 * * 5,6,0,1'
+
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Install Puppeteer dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            chromium-browser \
+            libx11-xcb1 \
+            libxcomposite1 \
+            libxcursor1 \
+            libxdamage1 \
+            libxi6 \
+            libxtst6 \
+            libnss3 \
+            libcups2 \
+            libxss1 \
+            libxrandr2 \
+            libasound2 \
+            libatk1.0-0 \
+            libatk-bridge2.0-0 \
+            libpangocairo-1.0-0 \
+            libgtk-3-0
+
+      - name: Run NCAA scraper
+        run: npx tsx scripts/scrape-results.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ NCAA scraper failed at $(date)"
+          echo "Check the logs above for details"
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "✅ NCAA scraper completed successfully at $(date)"
