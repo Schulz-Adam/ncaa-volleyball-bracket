@@ -28,29 +28,42 @@ jobs:
         with:
           version: 8
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
-      - name: Install Puppeteer dependencies
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Install Chrome dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            chromium-browser \
-            libx11-xcb1 \
-            libxcomposite1 \
-            libxcursor1 \
-            libxdamage1 \
-            libxi6 \
-            libxtst6 \
             libnss3 \
-            libcups2 \
-            libxss1 \
-            libxrandr2 \
-            libasound2 \
             libatk1.0-0 \
             libatk-bridge2.0-0 \
-            libpangocairo-1.0-0 \
-            libgtk-3-0
+            libcups2 \
+            libdrm2 \
+            libxkbcommon0 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxfixes3 \
+            libxrandr2 \
+            libgbm1 \
+            libasound2
+
+      - name: Install Chrome
+        run: npx puppeteer browsers install chrome
 
       - name: Run NCAA scraper
         run: npx tsx scripts/scrape-results.ts
