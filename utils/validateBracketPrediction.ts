@@ -2,12 +2,13 @@ import { prisma } from '../lib/prisma';
 
 /**
  * Validates if a user's prediction for a Round 2+ match is valid
- * A prediction is only valid if the user correctly predicted the teams that would be in this match
+ * A prediction is only valid if the user correctly predicted the WINNING team to advance
+ * (We don't care if they got the losing team wrong)
  *
  * @param predictionId - The prediction to validate
  * @param matchId - The match being validated
  * @param userId - The user who made the prediction
- * @returns true if the prediction is valid (user predicted correct matchup), false otherwise
+ * @returns true if the prediction is valid (user predicted winning team to advance), false otherwise
  */
 export async function validateBracketPrediction(
   predictionId: string,
@@ -85,26 +86,30 @@ export async function validateBracketPrediction(
 
   if (!prevMatch1 || !prevMatch2) return false;
 
-  // Check what the user predicted for these previous matches
+  // Get the actual winning team name
+  if (!match.winner) return false; // Match not completed yet
+  const actualWinner = match.winner === 'team1' ? match.team1 : match.team2;
+
+  // Check what the user predicted for the previous matches
   const predictedTeam1 = predictedWinners.get(prevMatch1.id);
   const predictedTeam2 = predictedWinners.get(prevMatch2.id);
 
-  // If user didn't predict either previous match, they can't have a valid bracket for this round
+  // If user didn't predict either previous match, they can't have a valid bracket
   if (!predictedTeam1 || !predictedTeam2) return false;
 
   // Normalize team names for comparison
   const normalize = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ');
 
-  // Check if the teams the user predicted match the actual teams in this match
-  const actualTeam1 = normalize(match.team1);
-  const actualTeam2 = normalize(match.team2);
-  const userTeam1 = normalize(predictedTeam1);
-  const userTeam2 = normalize(predictedTeam2);
+  // Check if the user predicted the WINNING team to advance from either previous match
+  // We only care that they predicted the winner correctly, not the losing team
+  const normalizedWinner = normalize(actualWinner);
+  const userPredictedTeam1 = normalize(predictedTeam1);
+  const userPredictedTeam2 = normalize(predictedTeam2);
 
-  // Teams match if they're in the right slots OR reversed
-  const teamsMatch =
-    (userTeam1 === actualTeam1 && userTeam2 === actualTeam2) ||
-    (userTeam1 === actualTeam2 && userTeam2 === actualTeam1);
+  // Valid if the winning team matches either of the user's predicted teams
+  const winnerMatches =
+    normalizedWinner === userPredictedTeam1 ||
+    normalizedWinner === userPredictedTeam2;
 
-  return teamsMatch;
+  return winnerMatches;
 }
