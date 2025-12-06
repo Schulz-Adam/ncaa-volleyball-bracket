@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthFromRequest } from '@/lib/auth';
 import { calculatePoints } from '@/utils/pointCalculation';
+import { validateBracketPrediction } from '@/utils/validateBracketPrediction';
 
 export async function POST(
   request: Request,
@@ -87,18 +88,48 @@ export async function POST(
     });
 
     // Calculate and update points for all predictions
-    const pointUpdates = match.predictions.map((prediction) => {
-      const points = calculatePoints(
-        {
-          predictedWinner: prediction.predictedWinner as 'team1' | 'team2',
-          predictedTotalSets: prediction.predictedTotalSets,
-        },
-        {
-          winner: winner as 'team1' | 'team2',
-          totalSets,
-          round: match.round,
+    const pointUpdates = match.predictions.map(async (prediction) => {
+      let points = 0;
+
+      // For Round 2+, validate that the user predicted the correct matchup
+      if (match.round > 1) {
+        const isValidPrediction = await validateBracketPrediction(
+          prediction.id,
+          match.id,
+          prediction.userId
+        );
+
+        // If they didn't predict the right teams to be in this match, they get 0 points
+        if (!isValidPrediction) {
+          points = 0;
+        } else {
+          // Valid matchup, calculate points normally
+          points = calculatePoints(
+            {
+              predictedWinner: prediction.predictedWinner as 'team1' | 'team2',
+              predictedTotalSets: prediction.predictedTotalSets,
+            },
+            {
+              winner: winner as 'team1' | 'team2',
+              totalSets,
+              round: match.round,
+            }
+          );
         }
-      );
+      } else {
+        // Round 1 - no validation needed
+        points = calculatePoints(
+          {
+            predictedWinner: prediction.predictedWinner as 'team1' | 'team2',
+            predictedTotalSets: prediction.predictedTotalSets,
+          },
+          {
+            winner: winner as 'team1' | 'team2',
+            totalSets,
+            round: match.round,
+          }
+        );
+      }
 
       return prisma.prediction.update({
         where: { id: prediction.id },

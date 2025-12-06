@@ -20,6 +20,7 @@
 import puppeteer from 'puppeteer';
 import { prisma } from '../lib/prisma';
 import { calculatePoints } from '../utils/pointCalculation';
+import { validateBracketPrediction } from '../utils/validateBracketPrediction';
 
 const NCAA_BRACKET_URL = 'https://www.ncaa.com/brackets/volleyball-women/d1/2025';
 
@@ -323,17 +324,47 @@ async function updateResults(
     let pointsUpdated = 0;
 
     for (const prediction of predictions) {
-      const points = calculatePoints(
-        {
-          predictedWinner: prediction.predictedWinner as 'team1' | 'team2',
-          predictedTotalSets: prediction.predictedTotalSets,
-        },
-        {
-          winner: winner as 'team1' | 'team2',
-          totalSets,
-          round: dbMatch.round,
+      let points = 0;
+
+      // For Round 2+, validate that the user predicted the correct matchup
+      if (dbMatch.round > 1) {
+        const isValidPrediction = await validateBracketPrediction(
+          prediction.id,
+          dbMatch.id,
+          prediction.userId
+        );
+
+        // If they didn't predict the right teams to be in this match, they get 0 points
+        if (!isValidPrediction) {
+          points = 0;
+        } else {
+          // Valid matchup, calculate points normally
+          points = calculatePoints(
+            {
+              predictedWinner: prediction.predictedWinner as 'team1' | 'team2',
+              predictedTotalSets: prediction.predictedTotalSets,
+            },
+            {
+              winner: winner as 'team1' | 'team2',
+              totalSets,
+              round: dbMatch.round,
+            }
+          );
         }
-      );
+      } else {
+        // Round 1 - no validation needed
+        points = calculatePoints(
+          {
+            predictedWinner: prediction.predictedWinner as 'team1' | 'team2',
+            predictedTotalSets: prediction.predictedTotalSets,
+          },
+          {
+            winner: winner as 'team1' | 'team2',
+            totalSets,
+            round: dbMatch.round,
+          }
+        );
+      }
 
       await prisma.prediction.update({
         where: { id: prediction.id },

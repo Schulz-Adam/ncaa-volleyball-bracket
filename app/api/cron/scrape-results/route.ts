@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
+import { calculatePoints } from '@/utils/pointCalculation';
+import { validateBracketPrediction } from '@/utils/validateBracketPrediction';
 
 const NCAA_BRACKET_URL = 'https://www.ncaa.com/brackets/volleyball-women/d1/2025';
 
@@ -185,14 +187,46 @@ export async function POST(request: NextRequest) {
         for (const prediction of predictions) {
           let points = 0;
 
-          if (prediction.predictedWinner === prediction.match.winner) {
-            const roundPoints = [10, 20, 40, 80, 160, 320];
-            points = roundPoints[prediction.match.round - 1] || 0;
+          // For Round 2+, validate that the user predicted the correct matchup
+          if (prediction.match.round > 1) {
+            const isValidPrediction = await validateBracketPrediction(
+              prediction.id,
+              prediction.matchId,
+              prediction.userId
+            );
 
-            const totalSets = (prediction.match.team1Sets || 0) + (prediction.match.team2Sets || 0);
-            if (prediction.predictedTotalSets === totalSets) {
-              points += 5;
+            // If they didn't predict the right teams to be in this match, they get 0 points
+            if (!isValidPrediction) {
+              points = 0;
+            } else {
+              // Valid matchup, calculate points normally
+              const totalSets = (prediction.match.team1Sets || 0) + (prediction.match.team2Sets || 0);
+              points = calculatePoints(
+                {
+                  predictedWinner: prediction.predictedWinner as 'team1' | 'team2',
+                  predictedTotalSets: prediction.predictedTotalSets,
+                },
+                {
+                  winner: prediction.match.winner as 'team1' | 'team2',
+                  totalSets,
+                  round: prediction.match.round,
+                }
+              );
             }
+          } else {
+            // Round 1 - no validation needed
+            const totalSets = (prediction.match.team1Sets || 0) + (prediction.match.team2Sets || 0);
+            points = calculatePoints(
+              {
+                predictedWinner: prediction.predictedWinner as 'team1' | 'team2',
+                predictedTotalSets: prediction.predictedTotalSets,
+              },
+              {
+                winner: prediction.match.winner as 'team1' | 'team2',
+                totalSets,
+                round: prediction.match.round,
+              }
+            );
           }
 
           await prisma.prediction.update({
