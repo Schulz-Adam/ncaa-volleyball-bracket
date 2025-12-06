@@ -136,11 +136,31 @@ async function scrapeBracket(): Promise<ScrapedMatch[]> {
             team2Sets = team2ScoreEl ? parseInt(team2ScoreEl.textContent?.trim() || '0') : undefined;
           }
 
-          // Determine round and match number from position/structure
-          // This is approximate - may need adjustment
-          const round = parseInt(
-            pod.closest('[data-round], .round')?.getAttribute('data-round') || '1'
-          );
+          // Determine round from bracket structure
+          // The bracket has columns for each round
+          let round = 1;
+          const parentColumn = pod.closest('.bracket-column, [class*="round"], [class*="column"]');
+          if (parentColumn) {
+            const columnClasses = parentColumn.className;
+            // Try to extract round from class names
+            const roundMatch = columnClasses.match(/round-?(\d+)/i);
+            if (roundMatch) {
+              round = parseInt(roundMatch[1]);
+            } else {
+              // Count bracket levels up to determine round
+              const bracketsContainer = pod.closest('.brackets, .bracket-container, .bracket-region');
+              if (bracketsContainer) {
+                const allColumns = Array.from(bracketsContainer.querySelectorAll('.bracket-column, [class*="round"], [class*="column"]'));
+                const columnIndex = allColumns.indexOf(parentColumn as Element);
+                if (columnIndex >= 0) {
+                  round = columnIndex + 1;
+                }
+              }
+            }
+          }
+
+          // Fallback: use matchNumber to infer round (32 matches = round 1, 16 = round 2, etc.)
+          // This is very approximate but better than nothing
           const matchNumber = index + 1;
 
           scrapedMatches.push({
@@ -175,7 +195,7 @@ async function scrapeBracket(): Promise<ScrapedMatch[]> {
  */
 async function matchWithDatabase(scrapedMatches: ScrapedMatch[]) {
   const dbMatches = await prisma.match.findMany({
-    where: { completed: false },
+    orderBy: [{ round: 'asc' }, { matchNumber: 'asc' }],
   });
 
   const updates: Array<{
@@ -184,21 +204,35 @@ async function matchWithDatabase(scrapedMatches: ScrapedMatch[]) {
   }> = [];
 
   for (const scraped of scrapedMatches) {
-    if (!scraped.completed || !scraped.winner) continue;
-
     // Normalize team names
     const team1 = normalizeTeamName(scraped.team1);
     const team2 = normalizeTeamName(scraped.team2);
 
-    // Find matching database match
+    // Find match by team names (ignore round since NCAA site doesn't mark them correctly)
     const dbMatch = dbMatches.find(
       (m) =>
         (normalizeTeamName(m.team1) === team1 && normalizeTeamName(m.team2) === team2) ||
-        (normalizeTeamName(m.team1) === team2 && normalizeTeamName(m.team2) === team1)
+        (normalizeTeamName(m.team1) === team2 && normalizeTeamName(m.team2) === team1) ||
+        // Also match if database has TBD and we need to update it
+        (m.team1 === 'TBD' && m.team2 === 'TBD' && !dbMatches.some(other =>
+          other !== m &&
+          ((normalizeTeamName(other.team1) === team1 && normalizeTeamName(other.team2) === team2) ||
+           (normalizeTeamName(other.team1) === team2 && normalizeTeamName(other.team2) === team1))
+        ))
     );
 
     if (dbMatch) {
-      updates.push({ dbMatch, scrapedMatch: scraped });
+      // Only add to updates if completed OR has different data
+      const needsUpdate =
+        scraped.completed !== dbMatch.completed ||
+        dbMatch.team1 === 'TBD' ||
+        dbMatch.team2 === 'TBD' ||
+        normalizeTeamName(dbMatch.team1) !== team1 ||
+        normalizeTeamName(dbMatch.team2) !== team2;
+
+      if (needsUpdate) {
+        updates.push({ dbMatch, scrapedMatch: scraped });
+      }
     }
   }
 
@@ -213,17 +247,46 @@ async function updateResults(
   dryRun: boolean
 ) {
   if (updates.length === 0) {
+    console.log('\n✨ No updates needed\n');
+    return;
+  }
+
+  const teamNameUpdates = updates.filter(u => u.dbMatch.team1 === 'TBD' || u.dbMatch.team2 === 'TBD');
+  const completedUpdates = updates.filter(u => u.scrapedMatch.completed && !u.dbMatch.completed);
+
+  if (teamNameUpdates.length > 0) {
+    console.log(`\n🔄 Updating team names for ${teamNameUpdates.length} match(es)...\n`);
+    for (const { dbMatch, scrapedMatch } of teamNameUpdates) {
+      console.log(`Round ${scrapedMatch.round}: ${scrapedMatch.team1} vs ${scrapedMatch.team2}`);
+
+      if (!dryRun) {
+        await prisma.match.update({
+          where: { id: dbMatch.id },
+          data: {
+            team1: scrapedMatch.team1,
+            team2: scrapedMatch.team2,
+            team1Seed: scrapedMatch.team1Seed,
+            team2Seed: scrapedMatch.team2Seed,
+          },
+        });
+      } else {
+        console.log(`   [DRY RUN - No changes made]`);
+      }
+    }
+  }
+
+  if (completedUpdates.length === 0) {
     console.log('\n✨ No new completed matches found\n');
     return;
   }
 
-  console.log(`\n📊 Found ${updates.length} newly completed match(es):\n`);
+  console.log(`\n📊 Found ${completedUpdates.length} newly completed match(es):\n`);
 
-  for (const { dbMatch, scrapedMatch } of updates) {
+  for (const { dbMatch, scrapedMatch } of completedUpdates) {
     const winner = scrapedMatch.winner!;
     const winnerTeam = winner === 'team1' ? scrapedMatch.team1 : scrapedMatch.team2;
 
-    console.log(`⚡ ${dbMatch.team1} vs ${dbMatch.team2}`);
+    console.log(`⚡ ${scrapedMatch.team1} vs ${scrapedMatch.team2}`);
     console.log(`   Winner: ${winnerTeam}`);
     if (scrapedMatch.team1Sets !== undefined && scrapedMatch.team2Sets !== undefined) {
       console.log(`   Set Score: ${scrapedMatch.team1Sets}-${scrapedMatch.team2Sets}`);
@@ -243,6 +306,10 @@ async function updateResults(
     await prisma.match.update({
       where: { id: dbMatch.id },
       data: {
+        team1: scrapedMatch.team1,
+        team2: scrapedMatch.team2,
+        team1Seed: scrapedMatch.team1Seed,
+        team2Seed: scrapedMatch.team2Seed,
         completed: true,
         winner,
         team1Sets: scrapedMatch.team1Sets,
