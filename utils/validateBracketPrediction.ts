@@ -45,9 +45,10 @@ export async function validateBracketPrediction(
   const predictedWinners = new Map<string, string>();
   for (const pred of userPredictions) {
     if (pred.match.completed && pred.match.winner) {
-      const winnerTeam = pred.predictedWinner === 'team1'
-        ? pred.match.team1
-        : pred.match.team2;
+      // Use predictedTeamName if available (new method), otherwise fall back to position-based lookup
+      const winnerTeam = pred.predictedTeamName
+        ? pred.predictedTeamName
+        : (pred.predictedWinner === 'team1' ? pred.match.team1 : pred.match.team2);
       predictedWinners.set(pred.matchId, winnerTeam);
     }
   }
@@ -75,6 +76,12 @@ export async function validateBracketPrediction(
     // Final Four: pair matches 0-2 and 1-3 from Elite 8
     prevMatch1Idx = matchIndex;
     prevMatch2Idx = matchIndex + 2;
+  } else if (match.round === 4) {
+    // Elite 8: reversed pairing due to regional crossover
+    // R4[0] ← R3[6,7], R4[1] ← R3[4,5], R4[2] ← R3[2,3], R4[3] ← R3[0,1]
+    const reversedIndex = (currentRound.length - 1) - matchIndex;
+    prevMatch1Idx = reversedIndex * 2;
+    prevMatch2Idx = reversedIndex * 2 + 1;
   } else {
     // Normal pairing: matches pair sequentially (0-1, 2-3, 4-5, etc.)
     prevMatch1Idx = matchIndex * 2;

@@ -74,6 +74,12 @@ export default function Bracket({ matches, predictions, onSubmitPrediction, onRe
           // Round 5 (Final Four): pair matches 0-2 and 1-3 from Elite 8
           prevMatch1Idx = matchIdx; // 0 or 1
           prevMatch2Idx = matchIdx + 2; // 2 or 3
+        } else if (round === 4) {
+          // Elite 8 (round 4): reversed pairing due to regional crossover
+          // R4[0] ← R3[6,7], R4[1] ← R3[4,5], R4[2] ← R3[2,3], R4[3] ← R3[0,1]
+          const reversedIndex = (currentRound.length - 1) - matchIdx;
+          prevMatch1Idx = reversedIndex * 2;
+          prevMatch2Idx = reversedIndex * 2 + 1;
         } else {
           // Normal pairing: matches pair sequentially (0-1, 2-3, 4-5, etc.)
           prevMatch1Idx = matchIdx * 2;
@@ -122,8 +128,8 @@ export default function Bracket({ matches, predictions, onSubmitPrediction, onRe
     const bottomLeftBracket: Record<number, MatchWithPrediction[]> = { 1: bottomLeftR1 };
     const bottomRightBracket: Record<number, MatchWithPrediction[]> = { 1: bottomRightR1 };
 
-    // Distribute rounds 2-4 proportionally
-    [2, 3, 4].forEach(round => {
+    // Distribute rounds 2-3 proportionally
+    [2, 3].forEach(round => {
       const roundMatches = grouped[round];
       const quarterSize = Math.ceil(roundMatches.length / 4);
       topLeftBracket[round] = roundMatches.slice(0, quarterSize);
@@ -131,6 +137,17 @@ export default function Bracket({ matches, predictions, onSubmitPrediction, onRe
       bottomLeftBracket[round] = roundMatches.slice(quarterSize * 2, quarterSize * 3);
       bottomRightBracket[round] = roundMatches.slice(quarterSize * 3);
     });
+
+    // Round 4 (Elite 8): reversed quadrant distribution due to regional crossover
+    // R4[0] comes from R3[6,7] (bottom right), R4[1] from R3[4,5] (bottom left),
+    // R4[2] from R3[2,3] (top right), R4[3] from R3[0,1] (top left)
+    const round4Matches = grouped[4];
+    if (round4Matches && round4Matches.length === 4) {
+      bottomRightBracket[4] = [round4Matches[0]]; // R4[0] → bottom right
+      bottomLeftBracket[4] = [round4Matches[1]];  // R4[1] → bottom left
+      topRightBracket[4] = [round4Matches[2]];    // R4[2] → top right
+      topLeftBracket[4] = [round4Matches[3]];     // R4[3] → top left
+    }
 
     return {
       topLeftBracket,
