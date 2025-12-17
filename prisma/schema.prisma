@@ -48,6 +48,7 @@ model Prediction {
   userId             String
   matchId            String
   predictedWinner    String
+  predictedTeamName  String?
   predictedTotalSets Int
   pointsEarned       Float?
   createdAt          DateTime @default(now())
